@@ -188,13 +188,11 @@ def consistent(assignment, csp, var, value):
 	"""Question 1"""
 	"""YOUR CODE HERE"""
 	currentBinaryConstraints = csp.binaryConstraints #stores the current binary constraints of passed constraint satisfaction problem
-
-	# POSSIBLY SAVE CONSTRAINT.AFFECTS(var) IN ITS OWN VAR IF YOU GET OTHER FUNCTIONALITY WORKING
 	for constraint in currentBinaryConstraints: #index through every constraint in current binary constraints
-		if(constraint.affects(var)): # if the constraint has an impact on the variable
+		isAffected = constraint.affects(var) # bool if constraint has an impact on variable
+		if(isAffected): # if the constraint has an impact on the variable
 			if(value == assignment.assignedValues[constraint.otherVariable(var)]): #if current value remains consistent with all other assignments
 				return False # false if not
-
 	return True # true if so
 
 
@@ -292,11 +290,33 @@ def chooseFirstVariable(assignment, csp):
 		the next variable to assign
 """
 def minimumRemainingValuesHeuristic(assignment, csp):
+	# MRV heuristic picks a variable that is most likely to cause failure, pruning the tree
+	# If a variable X has not leval values left, the MRV heuristic will select X and failure
+	# will be detected immediately-avoiding pointless searches through remaining variables
 	nextVar = None
 	domains = assignment.varDomains
-	"""Question 2"""
-	"""YOUR CODE HERE"""
-	
+	dictionaryDomainTuples = domains.items() # since varDomains is a dictionary mapping variables to possible domains, the items method returns iterators through said dictionary for later use
+
+	for currentVariable, currentDomain in dictionaryDomainTuples: # iterate through variable, domain tuples
+		if (assignment.isAssigned(currentVariable) == True): # if current variable is already assigned
+			continue # skip iteration
+		else: # if current variable is not already assigned
+			if (nextVar == None): # if nextVar unintialized or nextVar is nothing
+				nextVar = currentVariable # set the next up variable to current variable
+			else: # if it is not None
+				if (len(currentDomain) < len(domains[nextVar])):
+					nextVar = currentVariable
+				elif len(currentDomain) == len(domains[nextVar]) and not currentVariable == nextVar:
+					d1 = 0
+					d2 = 0
+					for binConstraint in csp.binaryConstraints:
+						if binConstraint.affects(currentVariable):
+							d1 += 1
+						if binConstraint.affects(nextVar):
+							d2 += 1
+					if d1 > d2:
+						nextVar = currentVariable
+
 	return nextVar
 
 
