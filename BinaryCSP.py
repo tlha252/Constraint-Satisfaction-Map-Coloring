@@ -15,7 +15,7 @@ class UnaryConstraint:
 		return var == self.var
 
 
-"""	
+"""
 	Implementation of UnaryConstraint
 	Satisfied if value does not match passed in paramater
 """
@@ -31,7 +31,7 @@ class BadValueConstraint(UnaryConstraint):
 		return 'BadValueConstraint (%s) {badValue: %s}' % (str(self.var), str(self.badValue))
 
 
-"""	
+"""
 	Implementation of UnaryConstraint
 	Satisfied if value matches passed in paramater
 """
@@ -187,8 +187,15 @@ class Assignment:
 def consistent(assignment, csp, var, value):
 	"""Question 1"""
 	"""YOUR CODE HERE"""
+	currentBinaryConstraints = csp.binaryConstraints #stores the current binary constraints of passed constraint satisfaction problem
 
-	return True
+	# POSSIBLY SAVE CONSTRAINT.AFFECTS(var) IN ITS OWN VAR IF YOU GET OTHER FUNCTIONALITY WORKING
+	for constraint in currentBinaryConstraints: #index through every constraint in current binary constraints
+		if(constraint.affects(var)): # if the constraint has an impact on the variable
+			if(value == assignment.assignedValues[constraint.otherVariable(var)]): #if current value remains consistent with all other assignments
+				return False # false if not
+
+	return True # true if so
 
 
 """
@@ -214,7 +221,32 @@ def consistent(assignment, csp, var, value):
 def recursiveBacktracking(assignment, csp, orderValuesMethod, selectVariableMethod):
 	"""Question 1"""
 	"""YOUR CODE HERE"""
-	return None
+	# follows pseudocode in ch.6.3 of book
+	isFinished = assignment.isComplete()  #bool if current assignment is finished or not
+	#PSEUDOCODE: if assignment is complete
+	if(isFinished == True):
+		return assignment #then return assignment
+	#PSEUDOCODE: var <-- SELECT-UNASSIGNED-VARIABLE(csp)
+	currentVariable = selectVariableMethod(assignment, csp) #returns variable method for current assignment
+	#-------------portion of code for recursion-------------------
+	if(currentVariable == None): #if variable is none, stop
+		return None # no solution exists
+	else:
+		#PSEUDOCODE: for each value in ORDER-DOMAIN-VALUES(var, assignment, csp) do
+		for currentValue in orderValuesMethod(assignment, csp, currentVariable):
+			#PSEUDOCODE: if value is consistent with assignment then
+			if(consistent(assignment, csp, currentVariable, currentValue)):
+				# PSEUDOCODE: add {var = value} to assignment
+				assignment.assignedValues[currentVariable] = currentValue # adds the current value at the current variable to the assigned values
+				# PSEUDOCODE:  result <-- BACKTRACK(assignent, csp)
+				recursiveProduct = recursiveBacktracking(assignment, csp, orderValuesMethod, selectVariableMethod)
+				# PSEUDOCODE: if result != failure then
+				if (recursiveProduct != None):
+					# PSEUDOCODE: return result
+					return recursiveProduct
+				# PSEUDOCODE: remove {var = value} from assignment
+				assignment.assignedValues[currentVariable] = None
+	return None # no solution exists
 
 
 """
@@ -264,7 +296,7 @@ def minimumRemainingValuesHeuristic(assignment, csp):
 	domains = assignment.varDomains
 	"""Question 2"""
 	"""YOUR CODE HERE"""
-
+	
 	return nextVar
 
 
