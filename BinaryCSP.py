@@ -291,12 +291,12 @@ def chooseFirstVariable(assignment, csp):
 """
 def minimumRemainingValuesHeuristic(assignment, csp):
 	# MRV heuristic picks a variable that is most likely to cause failure, pruning the tree
-	# If a variable X has not leval values left, the MRV heuristic will select X and failure
+	# If a variable X has not legal values left, the MRV heuristic will select X and failure
 	# will be detected immediately-avoiding pointless searches through remaining variables
-	nextVar = None
-	domains = assignment.varDomains
+	nextVar = None # intializes the next variable to be returned to none
+	domains = assignment.varDomains # grabs domain values of assignment
+	affectCounter = [0, 0] # array used to count how much each variable affects binary constraints, 0th element is the current variable 1st element is the next
 	dictionaryDomainTuples = domains.items() # since varDomains is a dictionary mapping variables to possible domains, the items method returns iterators through said dictionary for later use
-
 	for currentVariable, currentDomain in dictionaryDomainTuples: # iterate through variable, domain tuples
 		if (assignment.isAssigned(currentVariable) == True): # if current variable is already assigned
 			continue # skip iteration
@@ -304,20 +304,18 @@ def minimumRemainingValuesHeuristic(assignment, csp):
 			if (nextVar == None): # if nextVar unintialized or nextVar is nothing
 				nextVar = currentVariable # set the next up variable to current variable
 			else: # if it is not None
-				if (len(currentDomain) < len(domains[nextVar])):
-					nextVar = currentVariable
-				elif len(currentDomain) == len(domains[nextVar]) and not currentVariable == nextVar:
-					d1 = 0
-					d2 = 0
-					for binConstraint in csp.binaryConstraints:
-						if binConstraint.affects(currentVariable):
-							d1 += 1
-						if binConstraint.affects(nextVar):
-							d2 += 1
-					if d1 > d2:
-						nextVar = currentVariable
-
-	return nextVar
+				if (len(domains[nextVar]) > len(currentDomain)): # if the length of the domain of the next variable is greater than that of the current variable
+					nextVar = currentVariable # set next variable to current variable
+				elif (len(domains[nextVar]) == len(currentDomain)): # if the lengths are equal
+					if (currentVariable != nextVar): # and if they are not the same variable
+						for cspBinaryConstraint in csp.binaryConstraints: # index through all binary constraints of the problem
+							if cspBinaryConstraint.affects(currentVariable): # if the current binary constraint affects the current variable
+								affectCounter[0] = affectCounter[0] + 1 # add one to the affect counter for current variable
+							if cspBinaryConstraint.affects(nextVar): # if the current binary constraint affects the next variable
+								affectCounter[1] = affectCounter[1] + 1 # add one to the affect counter for next variable
+						if affectCounter[0] > affectCounter[1]: # if the current variable affects less than the next
+							nextVar = currentVariable # set next to current
+	return nextVar # return calculated variable
 
 
 """
@@ -342,14 +340,30 @@ def orderValues(assignment, csp, var):
 		a list of the possible values ordered by the least constraining value heuristic
 """
 def leastConstrainingValuesHeuristic(assignment, csp, var):
-	values = list(assignment.varDomains[var])
-	"""Hint: Creating a helper function to count the number of constrained values might be useful"""
-	"""Question 3"""
-	"""YOUR CODE HERE"""
+	values = list(assignment.varDomains[var]) # pulls the assignments domain for the passed variable and stores in a list
+	binaryVariables, masterConstraints, resultant = list(), list(), list() # initializes 3 lists
+	return lcvSorterHelper(assignment, csp, var, values, binaryVariables, masterConstraints, resultant) # returns value of helper function
 
-	return values
-
-
+# lcvSorterHelper sorts list of masterConstraints that are tied to variables in binaryConstraints which correlate to values in the assigned domain
+# to represent total dependencies. This way, a list is generated that makes it easy to pick least constraining values
+#-----------------------------------START OF lcvSorterHelper-------------------------------------------------------------------------------------------------------------------
+def lcvSorterHelper(assignment, csp, var, values, binaryVariables, masterConstraints, resultant):
+	SUM_INDEX = 0 # const for index of sum in the coupled list of masterConstraints
+	VALUE_INDEX = 1 # const for index of value in the coupled list of masterConstraints
+	for cspBinaryConstraint in csp.binaryConstraints: # for every binary constraint in the constraint satisfaction problem
+		if (var != None and cspBinaryConstraint.affects(var) == True): # if the variable is not empty and the variable affects the binary constraint
+			binaryVariables.append(cspBinaryConstraint.otherVariable(var)) # adds these constraints to the list
+	for currentValue in values: # for all values in the assigned domain of passed variable
+		sum = 0 # sum value initialized to 0
+		for currentVariable in binaryVariables: # for all vaariables found that are not empty and affect binaryConstraints
+			if (currentValue != None and currentValue in assignment.varDomains[currentVariable]): # if the current value is in the domain of the current variable
+				sum += 1 # increase sum
+		masterConstraints.append((sum,currentValue)) # add the couple of the currently found value and the total sum of all of its dependents
+	masterConstraints.sort(key = lambda list: list[SUM_INDEX]) # sort the master constraints by order of their sum. Use of lamba key creates anonmyous function, referenced at this URL: https://www.w3schools.com/python/ref_list_sort.asp
+	for currentList in masterConstraints: # for the couples in masterConstraints
+		resultant.append(currentList[VALUE_INDEX]) # add all values to the resultant list
+	return resultant # return final list of just values
+#-----------------------------------END OF lcvSorterHelper--------------------------------------------------------------------------------------------------------------------------
 """
 	Trivial method for making no inferences.
 """
@@ -378,7 +392,29 @@ def forwardChecking(assignment, csp, var, value):
 	domains = assignment.varDomains
 	"""Question 4"""
 	"""YOUR CODE HERE"""
+	visited = []
+	constrainedVar=[]
+	tempList=[]
+	listLength=0
+	val=value
 
+	#Constraints are checked for the value and updated with inferences with the variable and value.
+	for const in csp.binaryConstraints:
+		if(const.affects(var)):
+			if(assignment.assignedValues[const.otherVariable(var)]==None):
+				constrainedVar.append(const.otherVariable(var))
+				variable = const.otherVariable(var)
+				tempList = list(domains[variable])
+				listLength= len(domains[variable])
+				if val in tempList:
+					if (listLength != 1):
+						domains[variable].remove(val)
+						inferences.add((variable,val))
+						visited.append(variable)
+					else: #if the number of domain variables are 1
+						for visit in visited:
+							assignment.varDomains[visit].add(val)
+						return None
 	return inferences
 
 """
@@ -410,7 +446,41 @@ def forwardChecking(assignment, csp, var, value):
 def recursiveBacktrackingWithInferences(assignment, csp, orderValuesMethod, selectVariableMethod, inferenceMethod):
 	"""Question 4"""
 	"""YOUR CODE HERE"""
-	return None
+	# follows pseudocode in ch.6.3 of book
+	isFinished = assignment.isComplete()  #bool if current assignment is finished or not
+	#PSEUDOCODE: if assignment is complete
+	if(isFinished == True):
+		return assignment #then return assignment
+	#PSEUDOCODE: var <-- SELECT-UNASSIGNED-VARIABLE(csp)
+	currentVariable = selectVariableMethod(assignment, csp) #returns variable method for current assignment
+	#-------------portion of code for recursion-------------------
+	if(currentVariable == None): #if variable is none, stop
+		return None # no solution exists
+	else:
+		#PSEUDOCODE: for each value in ORDER-DOMAIN-VALUES(var, assignment, csp) do
+		for currentValue in orderValuesMethod(assignment, csp, currentVariable):
+			#PSEUDOCODE: if value is consistent with assignment then
+			if(consistent(assignment, csp, currentVariable, currentValue)):
+				#PSEUDOCODE: inferences <-- INFERENCE(csp, var, value)
+				inferenceList = inferenceMethod(assignment, csp, currentVariable, currentValue) # stores inference method in inferenceList
+				if (inferenceList == None): # if nothing is in inference list
+					continue # skip iteration
+				# PSEUDOCODE: add {var = value} to assignment
+				assignment.assignedValues[currentVariable] = currentValue # adds the current value at the current variable to the assigned values
+				# PSEUDOCODE:  result <-- BACKTRACK(assignent, csp)
+				recursiveProduct = recursiveBacktrackingWithInferences(assignment, csp, orderValuesMethod, selectVariableMethod, inferenceMethod)
+				if(assignment.isComplete()):
+					return assignment
+				# PSEUDOCODE: if result != failure then
+				if (recursiveProduct != None):
+					# PSEUDOCODE: return result
+					return recursiveProduct
+				# PSEUDOCODE: add inferences to assignment
+				for (currentInferenceVariable,currentInferenceValue) in inferenceList: # for all values & variables in inference list
+					assignment.varDomains[currentInferenceVariable].add(currentInferenceValue) # add to assignment
+				# PSEUDOCODE: remove {var = value} from assignment
+				assignment.assignedValues[currentVariable] = None
+	return None # no solution exists
 
 
 
