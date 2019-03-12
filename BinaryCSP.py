@@ -185,8 +185,6 @@ class Assignment:
 		True if the value would be consistent with all currently assigned values, False otherwise
 """
 def consistent(assignment, csp, var, value):
-	"""Question 1"""
-	"""YOUR CODE HERE"""
 	currentBinaryConstraints = csp.binaryConstraints #stores the current binary constraints of passed constraint satisfaction problem
 	for constraint in currentBinaryConstraints: #index through every constraint in current binary constraints
 		isAffected = constraint.affects(var) # bool if constraint has an impact on variable
@@ -217,8 +215,6 @@ def consistent(assignment, csp, var, value):
 		A completed and consistent assignment. None if no solution exists.
 """
 def recursiveBacktracking(assignment, csp, orderValuesMethod, selectVariableMethod):
-	"""Question 1"""
-	"""YOUR CODE HERE"""
 	# follows pseudocode in ch.6.3 of book
 	isFinished = assignment.isComplete()  #bool if current assignment is finished or not
 	#PSEUDOCODE: if assignment is complete
@@ -340,6 +336,10 @@ def orderValues(assignment, csp, var):
 		a list of the possible values ordered by the least constraining value heuristic
 """
 def leastConstrainingValuesHeuristic(assignment, csp, var):
+# Once a variable has been selected, the algorithm must decide on the order in which to
+# examine its values. For this,the least-constraining-value heuristic can be effective in some
+# cases. It prefers the value that rules out the fewest choices for the neighboring variables in
+# the constraint graph.
 	values = list(assignment.varDomains[var]) # pulls the assignments domain for the passed variable and stores in a list
 	binaryVariables, masterConstraints, resultant = list(), list(), list() # initializes 3 lists
 	return lcvSorterHelper(assignment, csp, var, values, binaryVariables, masterConstraints, resultant) # returns value of helper function
@@ -388,34 +388,31 @@ def noInferences(assignment, csp, var, value):
 		the inferences made in this call or None if inconsistent assignment
 """
 def forwardChecking(assignment, csp, var, value):
-	inferences = set([])
-	domains = assignment.varDomains
-	"""Question 4"""
-	"""YOUR CODE HERE"""
-	visited = []
-	constrainedVar=[]
-	tempList=[]
-	listLength=0
-	val=value
-
-	#Constraints are checked for the value and updated with inferences with the variable and value.
-	for const in csp.binaryConstraints:
-		if(const.affects(var)):
-			if(assignment.assignedValues[const.otherVariable(var)]==None):
-				constrainedVar.append(const.otherVariable(var))
-				variable = const.otherVariable(var)
-				tempList = list(domains[variable])
-				listLength= len(domains[variable])
-				if val in tempList:
-					if (listLength != 1):
-						domains[variable].remove(val)
-						inferences.add((variable,val))
-						visited.append(variable)
-					else: #if the number of domain variables are 1
-						for visit in visited:
-							assignment.varDomains[visit].add(val)
-						return None
-	return inferences
+	# 	One of the simplest forms of inference is called forward checking. Whenever a vari
+	# able X is assigned, the forward-checking process establishes arc consistency for it: for each
+	# unassigned variable Y that is connected to X by a constraint, delete from Y's domain any
+	# value that is inconsistent with the value chosen for X. Because forward checking only does
+	# arc consistency inferences, there is no reason to do forward checking if we have already done
+	# arc consistency as a preprocessing step
+	inferences = set([]) # intializes set of inferences
+	domains = assignment.varDomains # grabs all doains from passed assignment
+	seenVariables = list() # initalizes list to store all seen variables
+	for cspBinaryConstraint in csp.binaryConstraints: # for all binary constraints in csp
+		if(cspBinaryConstraint.affects(var)): # if this binary constraint affects this variable
+			if (assignment.assignedValues[cspBinaryConstraint.otherVariable(var)] != None): # if assigned values at variable are not equal to None
+				continue # skip iteration
+			else: # if it is None
+				swap = list(domains[cspBinaryConstraint.otherVariable(var)]) # creates list to swap out variables affected by constraints
+				if value in swap: # if passed value is in the swap list
+					if (len(swap) == 1): # if # of domain variables is 1
+						for currentVariable in seenVariables: # for all seen variables
+							assignment.varDomains[currentVariable].add(value) # adds var/value to domain assignment
+						return None # returns none since length is 1
+					else: # if greater than 1
+						seenVariables.append(cspBinaryConstraint.otherVariable(var))
+						inferences.add((cspBinaryConstraint.otherVariable(var),value))
+						domains[cspBinaryConstraint.otherVariable(var)].remove(value)
+	return inferences # return updated inferences
 
 """
 	Recursive backtracking algorithm.
@@ -444,8 +441,6 @@ def forwardChecking(assignment, csp, var, value):
 		A completed and consistent assignment. None if no solution exists.
 """
 def recursiveBacktrackingWithInferences(assignment, csp, orderValuesMethod, selectVariableMethod, inferenceMethod):
-	"""Question 4"""
-	"""YOUR CODE HERE"""
 	# follows pseudocode in ch.6.3 of book
 	isFinished = assignment.isComplete()  #bool if current assignment is finished or not
 	#PSEUDOCODE: if assignment is complete
@@ -469,8 +464,6 @@ def recursiveBacktrackingWithInferences(assignment, csp, orderValuesMethod, sele
 				assignment.assignedValues[currentVariable] = currentValue # adds the current value at the current variable to the assigned values
 				# PSEUDOCODE:  result <-- BACKTRACK(assignent, csp)
 				recursiveProduct = recursiveBacktrackingWithInferences(assignment, csp, orderValuesMethod, selectVariableMethod, inferenceMethod)
-				if(assignment.isComplete()):
-					return assignment
 				# PSEUDOCODE: if result != failure then
 				if (recursiveProduct != None):
 					# PSEUDOCODE: return result
@@ -503,11 +496,29 @@ def recursiveBacktrackingWithInferences(assignment, csp, orderValuesMethod, sele
 		the inferences made in this call or None if inconsistent assignment
 """
 def revise(assignment, csp, var1, var2, constraint):
-	inferences = set([])
-	"""Question 5"""
-	"""YOUR CODE HERE"""
+	inferences = set([]) # intializes inferences to empty set
+	VARIABLE_INDEX = 0 # const for index of variable in inference list couple
+	VALUE_INDEX = 1 # const for index of value in inference list couple
+	passedVar1 = var1 # for sake of naming conventions
+	passedVar2 = var2 # for sake of naming conventions
+	domain1 = assignment.varDomains[passedVar1] # stores domain from var 1
+	domain2 = assignment.varDomains[passedVar2] # stores domain from var 2
+	lengthDomain2 = len(domain2) # length of 2nd domain
 
-	return inferences
+	for currentVariable1 in domain2: # search through first variables in 2nd domain
+		satisfiedBool = False # bool value if constraint is satisfied or not, resets each iteration
+		for currentVariable2 in domain1: # search through second variables in 1st domain
+			if (constraint.isSatisfied(currentVariable1, currentVariable2) == True): # if variable 1 and 2 of this iteration satisfy the constraint
+				satisfiedBool = True # set satisfiedBool to True
+		if(satisfiedBool == False): # not satisfied, add to list of inferences
+			inferences.add((passedVar2, currentVariable1)) # update inferences
+	for couples in inferences: # for all var pairs in inferences
+		assignment.varDomains[couples[VARIABLE_INDEX]].remove(couples[VALUE_INDEX]) # removes inconsistent values
+	if lengthDomain2 <= 0: # if the length of the 2nd domain is less than 1
+		for couples in inferences: # for all var pairs in inferences
+			assignment.varDomains[couples[VARIABLE_INDEX]].add(couples[VALUE_INDEX]) # goes through in reverse and adds to assignments
+		return None # return none if length less than 1
+	return inferences # return updated inferences
 
 
 """
@@ -527,12 +538,37 @@ def revise(assignment, csp, var1, var2, constraint):
 		the inferences made in this call or None if inconsistent assignment
 """
 def maintainArcConsistency(assignment, csp, var, value):
-	inferences = set([])
-	"""Hint: implement revise first and use it as a helper function"""
-	"""Question 5"""
-	"""YOUR CODE HERE"""
+	# The problem is that it makes the current variable arc-consistent, but does not look ahead and
+	#make all the other variables arc-consistent.The algorithm called MAC (for Maintaining Arc Consistency (MAC)) detects this
+	#inconsistency
+	# follows description in ch. 6.2.2 in textbook
+	import queue # does not work ?
+	VARIABLE_INDEX = 0 # const for index of variable in inference list couple
+	VALUE_INDEX = 1 # const for index of value in inference list couple
+	inferences = set([]) # intializes inferences to empty set
+	deQueue = deque() # use deque because it is the closest thing I can get to work
 
-	return inferences
+	for cspBinaryConstraint in csp.binaryConstraints: # for every binary constraint
+		if(cspBinaryConstraint.affects(var)): # if constraint affects var
+			binConstraintVariable = cspBinaryConstraint.otherVariable(var) # saves binary constraint variable
+			deQueue.append((var, binConstraintVariable, cspBinaryConstraint))
+			# pushes the passed variable, the binary constraint variable, and the binary constraint itself on to queue
+	while (value != None and len(deQueue) > 0): # while value is valid and the queue is not empty
+		poppedVar, nextBinConstraintVariable, poppedConstraint = deQueue.pop() # pops off queue and stores values into 3 variables
+		returnedRevise = revise(assignment, csp, poppedVar, nextBinConstraintVariable, poppedConstraint) # calls helper function revise, determines inconsistent values in passed variables returns altered inferences
+		if(returnedRevise == None): # if returned inferences are None
+			for currentINF in inferences: # for all current inferences in inferences
+				currentVariable, currentValue = currentINF[VARIABLE_INDEX], currentINF[VALUE_INDEX] # fill values of current var and val
+				assignment.varDomains[currentVariable].add(currentValue) # add to domain assignment
+			return None # return empty
+		else: # if returned inferences are not None
+			if (len(returnedRevise) >= 1): # if the length of returned inferences is greater than or equal to 1
+				for cspBinaryConstraint in csp.binaryConstraints: # for every binary constraint
+					if (cspBinaryConstraint.affects(nextBinConstraintVariable)): # if this current binary constraint variable affects the next binary constraint variable
+						deQueue.append((nextBinConstraintVariable,cspBinaryConstraint.otherVariable(nextBinConstraintVariable),cspBinaryConstraint)) # push to queue
+				inferences = inferences.union(returnedRevise) # does a union with the returned inferences and pre existing inferences, since they are both sets
+	return inferences # return updated inferences
+
 
 
 """
@@ -547,13 +583,37 @@ def maintainArcConsistency(assignment, csp, var, value):
 		the updated assignment after inferences are made or None if an inconsistent assignment
 """
 def AC3(assignment, csp):
-	inferences = set([])
-	"""Hint: implement revise first and use it as a helper function"""
-	"""Question 6"""
-	"""YOUR CODE HERE"""
+	# From there, AC-3 does constraint
+	# propagation in the usual way, and if any variable has its domain reduced to the empty set, the
+	# call to AC-3 fails and we know to backtrack immediately
+	# follows description in ch. 6.2.2 in textbook
+	import queue # does not work ?
+	VARIABLE_INDEX = 0 # const for index of variable in inference list couple
+	VALUE_INDEX = 1 # const for index of value in inference list couple
+	inferences = set([]) # intializes inferences to empty set
+	deQueue = deque() # use deque because it is the closest thing I can get to work
 
-	return assignment
-
+	for cspBinaryConstraint in csp.binaryConstraints: # for every binary constraint
+		for domainVars in csp.varDomains: # searces through all domains
+			if(cspBinaryConstraint.affects(domainVars)): # if constraint affects var
+				binConstraintVariable = cspBinaryConstraint.otherVariable(domainVars) # saves binary constraint variable
+				deQueue.append((domainVars, binConstraintVariable, cspBinaryConstraint))
+				# pushes the passed variable, the binary constraint variable, and the binary constraint itself on to queue
+	while (len(deQueue) > 0): # while value is valid and the queue is not empty
+		poppedVar, nextBinConstraintVariable, poppedConstraint = deQueue.pop() # pops off queue and stores values into 3 variables
+		returnedRevise = revise(assignment, csp, poppedVar, nextBinConstraintVariable, poppedConstraint) # calls helper function revise, determines inconsistent values in passed variables returns altered inferences
+		if(returnedRevise == None): # if returned inferences are None
+			for currentINF in inferences: # for all current inferences in inferences
+				currentVariable, currentValue = currentINF[VARIABLE_INDEX], currentINF[VALUE_INDEX] # fill values of current var and val
+				assignment.varDomains[currentVariable].add(currentValue) # add to domain assignment
+			return None # return empty
+		else: # if returned inferences are not None
+			if (len(returnedRevise) >= 1): # if the length of returned inferences is greater than or equal to 1
+				for cspBinaryConstraint in csp.binaryConstraints: # for every binary constraint
+					if (cspBinaryConstraint.affects(nextBinConstraintVariable)): # if this current binary constraint variable affects the next binary constraint variable
+						deQueue.append((nextBinConstraintVariable,cspBinaryConstraint.otherVariable(nextBinConstraintVariable),cspBinaryConstraint)) # push to queue
+				inferences = inferences.union(returnedRevise) # does a union with the returned inferences and pre existing inferences, since they are both sets
+	return assignment # return assignment
 
 """
 	Solves a binary constraint satisfaction problem.
